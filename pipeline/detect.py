@@ -57,5 +57,7 @@ if __name__ == "__main__":
         
     vid_path = sys.argv[1]
     cam_id = sys.argv[2]
+    api_url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:8000"
+    
     # Assuming store is always ST1008 for this challenge dataset
-    process_video(vid_path, "ST1008", cam_id)
+    process_video(vid_path, "ST1008", cam_id, api_url)
