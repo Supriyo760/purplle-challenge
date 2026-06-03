@@ -190,9 +190,9 @@
                 if (f) {
                     document.getElementById('funnel-container').innerHTML = `
                         <div class="funnel-stage"><span>Store Entry</span> <strong>${f.entry.count}</strong></div>
-                        <div class="funnel-stage"><span>Zone Visit <small style="color:var(--danger)">(-${f.entry.drop_off_pct}%)</small></span> <strong>${f.zone_visit.count}</strong></div>
-                        <div class="funnel-stage"><span>Billing Queue <small style="color:var(--danger)">(-${f.zone_visit.drop_off_pct}%)</small></span> <strong>${f.billing_queue.count}</strong></div>
-                        <div class="funnel-stage"><span>Purchase <small style="color:var(--danger)">(-${f.billing_queue.drop_off_pct}%)</small></span> <strong>${f.purchase.count}</strong></div>
+                        <div class="funnel-stage"><span>Zone Visit <small style="color:var(--danger)">(${f.entry.drop_off_pct > 0 ? '-' : ''}${f.entry.drop_off_pct}%)</small></span> <strong>${f.zone_visit.count}</strong></div>
+                        <div class="funnel-stage"><span>Billing Queue <small style="color:var(--danger)">(${f.zone_visit.drop_off_pct > 0 ? '-' : ''}${f.zone_visit.drop_off_pct}%)</small></span> <strong>${f.billing_queue.count}</strong></div>
+                        <div class="funnel-stage"><span>Purchase <small style="color:var(--danger)">(${f.billing_queue.drop_off_pct > 0 ? '-' : ''}${f.billing_queue.drop_off_pct}%)</small></span> <strong>${f.purchase.count}</strong></div>
                     `;
                 }
 
