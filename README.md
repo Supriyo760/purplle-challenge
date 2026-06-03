@@ -14,7 +14,23 @@ A production-grade, AI-powered retail analytics system built for the Purplle Tec
 
 ---
 
-## Quick Start (Docker — Recommended)
+## 🚀 Live Deployment
+
+The API and Dashboard are live and accessible over the internet:
+
+| Resource | URL |
+|---|---|
+| **Live Dashboard** | **https://purplle-store-api-d8mk.onrender.com** |
+| Swagger API Docs | https://purplle-store-api-d8mk.onrender.com/docs |
+| GitHub Repository | https://github.com/Supriyo760/purplle-challenge |
+
+> **Part E — Live Dashboard URL:** `https://purplle-store-api-d8mk.onrender.com`
+>
+> The dashboard auto-refreshes every 3 seconds. It displays: Unique Visitors, Conversion Rate, Queue Depth, Abandonment Rate, Conversion Funnel with drop-off percentages, and Active Anomalies with severity and suggested actions.
+
+---
+
+## Quick Start (Local Docker)
 
 The API and Dashboard are fully containerized. No Python environment setup needed.
 
@@ -29,18 +45,14 @@ cd purplle-challenge
 docker-compose up --build
 ```
 
-Once running, open your browser:
+Once running, the local environment is available at:
 
 | Service | Local URL |
 |---|---|
-| 🖥️ **Live Dashboard** | **http://localhost:8000** |
+| 🖥️ **Local Dashboard** | **http://localhost:8000** |
 | 📖 Swagger API Docs | http://localhost:8000/docs |
 | 📄 ReDoc API Docs | http://localhost:8000/redoc |
 | ❤️ Health Check | http://localhost:8000/health |
-
-> **Part E — Live Dashboard URL:** `http://localhost:8000`
->
-> The dashboard auto-refreshes every 3 seconds. It displays: Unique Visitors, Conversion Rate, Queue Depth, Abandonment Rate, Conversion Funnel with drop-off percentages, and Active Anomalies with severity and suggested actions.
 
 ---
 
