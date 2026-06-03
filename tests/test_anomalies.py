@@ -1,5 +1,5 @@
-# PROMPT: Generate pytest tests for a store anomaly detection API endpoint (GET /stores/{id}/anomalies). The endpoint should detect: (1) BILLING_QUEUE_SPIKE when queue_depth > 5, (2) CONVERSION_DROP when billing abandonment > 50% with sufficient data, (3) DEAD_ZONE when a zone has no visits in 30 minutes. Test that anomalies fire correctly AND that they do NOT fire when conditions aren't met.
-# CHANGES MADE: Updated the anomaly type strings to match our actual implementation, adjusted the CONVERSION_DROP guard threshold to match our minimum-data check, and added a test verifying that DEAD_ZONE does not false-positive on billing zones that use BILLING_QUEUE_JOIN instead of ZONE_ENTER.
+# PROMPT: Generate a pytest suite for a store anomaly detection API (GET /stores/{id}/anomalies). The endpoint detects three anomaly types: (1) BILLING_QUEUE_SPIKE — fires when the most recent BILLING_QUEUE_JOIN event has queue_depth > 5, with severity escalating to CRITICAL above 10; (2) CONVERSION_DROP — fires when billing abandonment exceeds 50% AND there are at least 10 recent billing sessions (guards against false positives on low sample sizes); (3) DEAD_ZONE — fires when a zone has no ZONE_ENTER events in the past 30 minutes, but must NOT fire for BILLING since that zone uses BILLING_QUEUE_JOIN instead. Each anomaly must include 'type', 'severity', 'description', and 'suggested_action' fields. Test both that anomalies fire correctly AND that they do NOT fire when conditions are not met (true-negative tests are as important as true-positive tests).
+# CHANGES MADE: (1) Updated anomaly type strings from QUEUE_SPIKE to BILLING_QUEUE_SPIKE to match our implementation. (2) Added the true-negative test for BILLING false-positives — BILLING must never be flagged as DEAD_ZONE because it uses a different event type. (3) Added TestAnomalyStructure class to verify the exact response schema shape, which was missing from the AI-generated output. (4) Adjusted CONVERSION_DROP guard threshold assertions to match our minimum-data check (joins_recent >= 10).
 
 import pytest
 from fastapi.testclient import TestClient
@@ -53,11 +53,16 @@ def _insert_event(db, **kwargs):
 
 class TestNoAnomalies:
     def test_empty_store_returns_no_anomalies(self):
+        """An empty database must return an empty anomalies list.
+        This is the baseline sanity check — no false positives on zero data."""
         resp = client.get("/stores/ST1008/anomalies")
         assert resp.status_code == 200
         assert resp.json()["anomalies"] == []
 
     def test_normal_activity_no_anomalies(self):
+        """Normal, healthy store activity should NOT trigger any anomalies.
+        This is a true-negative test — checks that our thresholds aren't
+        too sensitive and firing on every realistic scenario."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         # A few normal zone visits — no queue spike, no dead zone
@@ -74,6 +79,9 @@ class TestNoAnomalies:
 
 class TestQueueSpike:
     def test_queue_spike_fires_on_high_depth(self):
+        """A BILLING_QUEUE_JOIN event with queue_depth > 5 must trigger
+        a BILLING_QUEUE_SPIKE anomaly. This threshold represents an unacceptable
+        wait time that requires immediate staff intervention."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         _insert_event(db, event_type=EventType.BILLING_QUEUE_JOIN, zone_id="BILLING",
@@ -85,6 +93,9 @@ class TestQueueSpike:
         assert "BILLING_QUEUE_SPIKE" in types
 
     def test_queue_spike_critical_above_10(self):
+        """Queue depths above 10 represent a severe customer experience failure
+        and must escalate the severity to CRITICAL (vs WARN for depth 5–10).
+        This triggers a higher-priority alert in the dashboard."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         _insert_event(db, event_type=EventType.BILLING_QUEUE_JOIN, zone_id="BILLING",
@@ -100,6 +111,9 @@ class TestQueueSpike:
 
 class TestDeadZone:
     def test_dead_zone_fires_for_inactive_zone(self):
+        """A zone that had visits more than 30 minutes ago and no recent activity
+        must be flagged as DEAD_ZONE. This indicates staff may need to engage
+        customers or restock that area."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         old = now - timedelta(hours=2)
@@ -113,7 +127,9 @@ class TestDeadZone:
         assert "DEAD_ZONE" in types
 
     def test_billing_zone_not_dead_when_queue_joins_exist(self):
-        """BILLING uses BILLING_QUEUE_JOIN, not ZONE_ENTER — must not false-positive."""
+        """BILLING is a special zone that emits BILLING_QUEUE_JOIN events instead of
+        ZONE_ENTER. A naive DEAD_ZONE check against ZONE_ENTER would always flag
+        BILLING as dead. This test guards against that false positive."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         _insert_event(db, event_type=EventType.BILLING_QUEUE_JOIN, zone_id="BILLING",
@@ -129,6 +145,10 @@ class TestDeadZone:
 
 class TestAnomalyStructure:
     def test_anomaly_has_required_fields(self):
+        """Every anomaly object must include all four required fields specified
+        in the API contract: type, severity (one of INFO/WARN/CRITICAL),
+        description (human-readable), and suggested_action (operational guidance).
+        An anomaly missing any of these would be incomplete for the dashboard."""
         db = TestingSessionLocal()
         now = datetime.now(timezone.utc)
         _insert_event(db, event_type=EventType.BILLING_QUEUE_JOIN, zone_id="BILLING",
@@ -137,8 +157,10 @@ class TestAnomalyStructure:
 
         resp = client.get("/stores/ST1008/anomalies")
         for anomaly in resp.json()["anomalies"]:
-            assert "type" in anomaly
-            assert "severity" in anomaly
-            assert anomaly["severity"] in ["INFO", "WARN", "CRITICAL"]
-            assert "description" in anomaly
-            assert "suggested_action" in anomaly
+            assert "type" in anomaly, "Missing 'type' field"
+            assert "severity" in anomaly, "Missing 'severity' field"
+            assert anomaly["severity"] in ["INFO", "WARN", "CRITICAL"], f"Invalid severity: {anomaly['severity']}"
+            assert "description" in anomaly, "Missing 'description' field"
+            assert "suggested_action" in anomaly, "Missing 'suggested_action' field"
+            assert len(anomaly["description"]) > 0, "Description must not be empty"
+            assert len(anomaly["suggested_action"]) > 0, "suggested_action must not be empty"
