@@ -14,7 +14,7 @@ A production-grade, AI-powered retail analytics system built for the Purplle Tec
 
 ---
 
-## 🚀 Live Deployment
+## Live Deployment
 
 The API and Dashboard are live and accessible over the internet:
 
@@ -49,10 +49,10 @@ Once running, the local environment is available at:
 
 | Service | Local URL |
 |---|---|
-| 🖥️ **Local Dashboard** | **http://localhost:8000** |
-| 📖 Swagger API Docs | http://localhost:8000/docs |
-| 📄 ReDoc API Docs | http://localhost:8000/redoc |
-| ❤️ Health Check | http://localhost:8000/health |
+| **Local Dashboard** | **http://localhost:8000** |
+| Swagger API Docs | http://localhost:8000/docs |
+| ReDoc API Docs | http://localhost:8000/redoc |
+| Health Check | http://localhost:8000/health |
 
 ---
 
