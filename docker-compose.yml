@@ -1,0 +1,20 @@
+
+services:
+  api:
+    build: .
+    container_name: store_intelligence_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+      - store_db:/code/data
+    environment:
+      - DATABASE_URL=sqlite:////code/data/store_intelligence.db
+    restart: unless-stopped
+    
+  # Note: In a true deployment, the YOLOv8 pipeline would run either on edge devices 
+  # or in a separate GPU container here. We leave it as a script to be executed manually 
+  # for the challenge evaluation, as GPU pass-through in docker-compose varies significantly.
+
+volumes:
+  store_db:

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Intelligence | Live Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 1rem;
+        }
+        .header h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .dot {
+            height: 10px; width: 10px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        .funnel-stage {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        .funnel-stage:last-child { border: none; }
+        .anomaly-item {
+            padding: 1rem;
+            border-left: 4px solid var(--warn);
+            background: rgba(245, 158, 11, 0.1);
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+        .anomaly-item.CRITICAL {
+            border-left-color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Store Intelligence Dashboard <span style="color:var(--text-muted); font-size:1rem; font-weight:400;">| Brigade Road (ST1008)</span></h1>
+        <div class="status">
+            <button onclick="resetData()" style="margin-right: 1rem; background: var(--danger); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.75rem;">Reset Data</button>
+            <span class="dot" id="health-dot"></span>
+            <span id="health-text">System Active</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Key Metrics -->
+        <div class="panel">
+            <h2>Real-time Metrics</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">Unique Visitors</div>
+                    <div class="metric-value" id="val-visitors">--</div>
+                    <div id="confidence-badge" style="display:none; font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: 4px; display: inline-block; font-weight: 600; margin-top: 0.25rem;"></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">Conversion Rate</div>
+                    <div class="metric-value" id="val-conversion" style="color: var(--success);">--%</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">Queue Depth</div>
+                    <div class="metric-value" id="val-queue">--</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">Abandonment</div>
+                    <div class="metric-value" id="val-abandon" style="color: var(--warn);">--%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Funnel -->
+        <div class="panel">
+            <h2>Conversion Funnel</h2>
+            <div id="funnel-container">
+                <div style="color: var(--text-muted); font-style: italic;">Awaiting data...</div>
+            </div>
+        </div>
+
+        <!-- Anomalies -->
+        <div class="panel">
+            <h2>Active Anomalies</h2>
+            <div id="anomalies-container">
+                <div style="color: var(--text-muted); font-style: italic;">No active anomalies detected.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        const STORE_ID = 'ST1008';
+
+        async function resetData() {
+            if (!confirm('Are you sure you want to clear all tracking data? This will reset the dashboard to zero.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/reset`, { method: 'DELETE' });
+                const result = await res.json();
+                if (res.ok) {
+                    // Instantly reset the UI before the next poll
+                    document.getElementById('val-visitors').innerText = '0';
+                    document.getElementById('val-conversion').innerText = '0.0%';
+                    document.getElementById('val-queue').innerText = '0';
+                    document.getElementById('val-abandon').innerText = '0.0%';
+                    updateDashboard();
+                } else {
+                    alert('Failed to reset data: ' + result.message);
+                }
+            } catch(e) {
+                console.error(e);
+                alert('Error resetting data.');
+            }
+        }
+
+        async function updateDashboard() {
+            try {
+                // Fetch Metrics
+                const resMetrics = await fetch(`${API_BASE}/stores/${STORE_ID}/metrics`);
+                const metrics = await resMetrics.json();
+                document.getElementById('val-visitors').innerText = metrics.unique_visitors || 0;
+                document.getElementById('val-conversion').innerText = `${(metrics.conversion_rate * 100).toFixed(1)}%`;
+                document.getElementById('val-queue').innerText = metrics.queue_depth || 0;
+                document.getElementById('val-abandon').innerText = `${(metrics.abandonment_rate * 100).toFixed(1)}%`;
+
+                // Show data confidence badge
+                const badge = document.getElementById('confidence-badge');
+                if (metrics.data_confidence) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = metrics.data_confidence === 'HIGH' ? '● HIGH CONFIDENCE' : '⚠ LOW CONFIDENCE';
+                    badge.style.background = metrics.data_confidence === 'HIGH' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)';
+                    badge.style.color = metrics.data_confidence === 'HIGH' ? 'var(--success)' : 'var(--warn)';
+                    badge.title = metrics.confidence_reason || '';
+                }
+
+                // Fetch Funnel
+                const resFunnel = await fetch(`${API_BASE}/stores/${STORE_ID}/funnel`);
+                const funnelData = await resFunnel.json();
+                const f = funnelData.funnel;
+                if (f) {
+                    document.getElementById('funnel-container').innerHTML = `
+                        <div class="funnel-stage"><span>Store Entry</span> <strong>${f.entry.count}</strong></div>
+                        <div class="funnel-stage"><span>Zone Visit <small style="color:var(--danger)">(-${f.entry.drop_off_pct}%)</small></span> <strong>${f.zone_visit.count}</strong></div>
+                        <div class="funnel-stage"><span>Billing Queue <small style="color:var(--danger)">(-${f.zone_visit.drop_off_pct}%)</small></span> <strong>${f.billing_queue.count}</strong></div>
+                        <div class="funnel-stage"><span>Purchase <small style="color:var(--danger)">(-${f.billing_queue.drop_off_pct}%)</small></span> <strong>${f.purchase.count}</strong></div>
+                    `;
+                }
+
+                // Fetch Anomalies
+                const resAnom = await fetch(`${API_BASE}/stores/${STORE_ID}/anomalies`);
+                const anomData = await resAnom.json();
+                if (anomData.anomalies && anomData.anomalies.length > 0) {
+                    const container = document.getElementById('anomalies-container');
+                    container.innerHTML = ''; // clear
+                    anomData.anomalies.forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = `anomaly-item ${a.severity}`;
+                        
+                        const title = document.createElement('div');
+                        title.style.fontWeight = '600';
+                        title.style.marginBottom = '0.25rem';
+                        title.textContent = a.type;
+                        
+                        const desc = document.createElement('div');
+                        desc.style.fontSize = '0.875rem';
+                        desc.textContent = a.description;
+                        
+                        const action = document.createElement('div');
+                        action.style.fontSize = '0.75rem';
+                        action.style.color = 'var(--text-muted)';
+                        action.style.marginTop = '0.5rem';
+                        action.textContent = 'Action: ' + a.suggested_action;
+                        
+                        div.appendChild(title);
+                        div.appendChild(desc);
+                        div.appendChild(action);
+                        container.appendChild(div);
+                    });
+                } else {
+                    document.getElementById('anomalies-container').innerHTML = `<div style="color: var(--success); font-weight: 600;">✓ All systems nominal</div>`;
+                }
+                
+                // Update health dot
+                document.getElementById('health-dot').style.backgroundColor = 'var(--success)';
+                document.getElementById('health-text').innerText = 'System Active';
+
+            } catch (err) {
+                console.error("Dashboard update failed:", err);
+                document.getElementById('health-dot').style.backgroundColor = 'var(--danger)';
+                document.getElementById('health-text').innerText = 'API Disconnected';
+            }
+        }
+
+        // Poll every 3 seconds
+        setInterval(updateDashboard, 3000);
+        updateDashboard();
+    </script>
+</body>
+</html>
